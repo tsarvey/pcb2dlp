@@ -14,7 +14,7 @@ class ControlState:
     exposure_s: float = 60.0
     pwm: int = 255
     invert: bool = False
-    mirror_x: bool = False
+    mirror_x: bool = True
     mirror_y: bool = False
     rotation: int = 0
     offset_x_mm: float = 0.0

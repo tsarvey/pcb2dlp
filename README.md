@@ -35,7 +35,7 @@ Options:
 |------|---------|-------------|
 | `--exposure` | 60 | Exposure time in seconds |
 | `--pwm` | 255 | UV LED power (0–255) |
-| `--mirror-x` | off | Mirror horizontally (for bottom layer) |
+| `--mirror-x` | **on** | Mirror horizontally (use `--no-mirror-x` to disable) |
 | `--mirror-y` | off | Mirror vertically |
 | `--invert` | off | Invert polarity (for positive photoresist) |
 | `--rotation` | 0 | Rotate 0/90/180/270° |
