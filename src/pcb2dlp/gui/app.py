@@ -5,14 +5,13 @@ from tkinter import filedialog, messagebox
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
 
 from ..input_formats import get_format_for_file, InputFormat
 from ..output_formats import ExposureParams
 from ..output_formats.goo import GooOutput
 from ..printers import get_printer
 from ..rasterizer import PlacementConfig, rasterize_svg
-from ..test_pattern import generate_exposure_times, _draw_test_pattern
+from ..test_pattern import generate_exposure_times, build_test_layers
 from .controls import ControlsPanel
 from .preview import PreviewCanvas
 
@@ -28,7 +27,8 @@ class App:
         self._svg: str | None = None
         self._board_size: tuple[float, float] | None = None
         self._bitmap: np.ndarray | None = None
-        self._test_pattern_layers: list[tuple[np.ndarray, float]] | None = None
+        self._test_pattern_layers: list[tuple[np.ndarray, int]] | None = None
+        self._test_pattern_base_time: float | None = None
 
         self._build_menu()
         self._build_layout()
@@ -114,26 +114,11 @@ class App:
         board_w, board_h = dialog.result["board_w"], dialog.result["board_h"]
 
         exposures = generate_exposure_times(base, multiplier, regions)
-        region_w = board_w / regions
 
-        # Center on build plate
-        offset_x = (profile.build_area_x_mm - board_w) / 2
-        offset_y = (profile.build_area_y_mm - board_h) / 2
-
-        layers: list[tuple[np.ndarray, float]] = []
-        composite = np.zeros((profile.y_pixels, profile.x_pixels), dtype=np.uint8)
-
-        for i, exposure_s in enumerate(exposures):
-            bitmap = np.zeros((profile.y_pixels, profile.x_pixels), dtype=np.uint8)
-            img = Image.fromarray(bitmap)
-            draw = ImageDraw.Draw(img)
-            region_x = offset_x + i * region_w
-            _draw_test_pattern(draw, region_x, offset_y, region_w, board_h, exposure_s, profile)
-            bitmap = np.array(img)
-            layers.append((bitmap, exposure_s))
-            composite = np.maximum(composite, bitmap)
+        layers, base_time, composite = build_test_layers(exposures, profile, board_w, board_h)
 
         self._test_pattern_layers = layers
+        self._test_pattern_base_time = base_time
         self._bitmap = composite
         self._svg = None
         self._input_fmt = None
@@ -141,12 +126,14 @@ class App:
 
         self.preview.update_bitmap(composite)
         self.controls.set_test_pattern_mode(True)
+        total_layers = sum(count for _, count in layers)
+        total_time_s = total_layers * (base_time + 4)  # ~4s lift overhead
         exp_str = ", ".join(f"{e}s" for e in exposures)
         self.root.title(f"pcb2dlp - Exposure Test ({exp_str})")
         self._mode_label.config(
-            text=f"Test pattern mode: {regions} regions\n"
+            text=f"Test pattern mode: {regions} regions, {total_layers} layers\n"
                  f"Exposures: {exp_str}\n"
-                 f"Sidebar exposure/transform settings ignored"
+                 f"Est. time: {total_time_s / 60:.1f} min"
         )
 
     def _on_settings_change(self):
@@ -199,7 +186,12 @@ class App:
         try:
             writer = GooOutput()
             if self._test_pattern_layers is not None:
-                writer.write_multilayer(Path(path), self._test_pattern_layers, profile, params)
+                test_params = ExposureParams(
+                    exposure_time_s=self._test_pattern_base_time,
+                    bottom_exposure_time_s=self._test_pattern_base_time,
+                    light_pwm=state.pwm,
+                )
+                writer.write_multilayer(Path(path), self._test_pattern_layers, profile, test_params)
             else:
                 writer.write(Path(path), self._bitmap, profile, params)
             messagebox.showinfo("Success", f"Exported to {Path(path).name}")

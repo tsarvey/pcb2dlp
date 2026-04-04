@@ -278,6 +278,80 @@ def _draw_test_pattern(draw: ImageDraw.Draw, x: float, y: float,
     d.text(cx, y + region_h - 4.5, f"{exposure_s}s", 2.5)
 
 
+def build_test_layers(
+    exposures: list[float],
+    profile: PrinterProfile,
+    board_w: float,
+    board_h: float,
+) -> tuple[list[tuple[np.ndarray, int]], float, np.ndarray]:
+    """Build cumulative test exposure layers.
+
+    All regions that still need exposure are lit simultaneously.  Regions
+    drop out one by one as they reach their target.  All layers use the
+    same uniform exposure time.
+
+    For exposures [5, 10, 20] with layer_time=5s:
+      Layer 0 (1×): ██████  all 3 regions  -> region 0 done (5s)
+      Layer 1 (1×): ░░████  regions 1,2    -> region 1 done (10s)
+      Layer 2 (2×): ░░░░██  region 2 only  -> region 2 done (20s)
+      Total: 4 layers (vs 7 sequential)
+
+    Returns (layers, layer_time_s, composite).
+    """
+    regions = len(exposures)
+    region_w = board_w / regions
+
+    offset_x = (profile.build_area_x_mm - board_w) / 2
+    offset_y = (profile.build_area_y_mm - board_h) / 2
+
+    # Find the largest layer time that keeps rounding error under 5%
+    # and total layer count under 200.
+    max_layers_limit = 200
+    layer_time = exposures[0]
+    while layer_time >= 0.5:
+        trial = [max(1, round(e / layer_time)) for e in exposures]
+        if max(trial) > max_layers_limit:
+            layer_time *= 2
+            break
+        max_err = max(
+            abs(n * layer_time - e) / e
+            for n, e in zip(trial, exposures) if e > 0
+        )
+        if max_err <= 0.05:
+            break
+        layer_time /= 2
+    layers_needed = [max(1, round(e / layer_time)) for e in exposures]
+
+    # Build unique bitmaps at each threshold where a region drops out
+    layers: list[tuple[np.ndarray, int]] = []
+    composite = np.zeros((profile.y_pixels, profile.x_pixels), dtype=np.uint8)
+
+    sorted_thresholds = sorted(set(layers_needed))
+    prev_count = 0
+
+    for threshold in sorted_thresholds:
+        bitmap = np.zeros((profile.y_pixels, profile.x_pixels), dtype=np.uint8)
+        img = Image.fromarray(bitmap)
+        draw = ImageDraw.Draw(img)
+
+        # Draw all regions that still need exposure at this point
+        for region_idx in range(regions):
+            if layers_needed[region_idx] >= threshold:
+                region_x = offset_x + region_idx * region_w
+                _draw_test_pattern(
+                    draw, region_x, offset_y, region_w, board_h,
+                    exposures[region_idx], profile,
+                )
+
+        bitmap = np.array(img)
+        repeat_count = threshold - prev_count
+        layers.append((bitmap, repeat_count))
+        composite = np.maximum(composite, bitmap)
+        prev_count = threshold
+
+    return layers, layer_time, composite
+
+
 def generate_test_exposure(
     profile: PrinterProfile,
     output_path: Path,
@@ -298,32 +372,14 @@ def generate_test_exposure(
     """
     exposures = generate_exposure_times(base_exposure_s, multiplier, regions)
 
-    plate_w = profile.build_area_x_mm
-    plate_h = profile.build_area_y_mm
-    board_w = board_width_mm or plate_w
-    board_h = board_height_mm or plate_h
-    region_w = board_w / regions
+    board_w = board_width_mm or profile.build_area_x_mm
+    board_h = board_height_mm or profile.build_area_y_mm
 
-    # Offset to center the test area on the build plate
-    offset_x = (plate_w - board_w) / 2
-    offset_y = (plate_h - board_h) / 2
-
-    layers: list[tuple[np.ndarray, float]] = []
-
-    for i, exposure_s in enumerate(exposures):
-        bitmap = np.zeros((profile.y_pixels, profile.x_pixels), dtype=np.uint8)
-        img = Image.fromarray(bitmap)
-        draw = ImageDraw.Draw(img)
-
-        region_x = offset_x + i * region_w
-        _draw_test_pattern(draw, region_x, offset_y, region_w, board_h, exposure_s, profile)
-
-        bitmap = np.array(img)
-        layers.append((bitmap, exposure_s))
+    layers, base_time, _ = build_test_layers(exposures, profile, board_w, board_h)
 
     params = ExposureParams(
-        exposure_time_s=exposures[0],
-        bottom_exposure_time_s=exposures[0],
+        exposure_time_s=base_time,
+        bottom_exposure_time_s=base_time,
         light_pwm=pwm,
     )
 

@@ -40,7 +40,7 @@ HEADER_SIZE = (
     + 4 + 2 + 2 + 1 + 1  # total_layers, resolutions, mirrors
     + 4 + 4 + 4 + 4  # x/y/z size, layer_thickness
     + 4 + 1 + 4  # exposure_time, exposure_delay_mode, turn_off_time
-    + 4 * 7  # bottom_before_lift_time through after_retract_time
+    + 4 * 6  # 6 wait-time floats (bottom + common: before_lift, after_lift, after_retract)
     + 4 + 4  # bottom_exposure_time, bottom_layers
     + 4 * 16  # lift/retract distances and speeds
     + 2 + 2 + 1  # pwm values, advance_mode
@@ -173,26 +173,35 @@ def _write_header(
     f.write(struct.pack(">f", params.layer_thickness_mm))
     # Common exposure time
     f.write(struct.pack(">f", params.exposure_time_s))
-    # Exposure delay mode
-    f.write(struct.pack(">B", 0))
-    # Turn off time
+    # Exposure delay mode (1 = static wait-time mode; enables per-phase
+    # wait times that give the LCD time to refresh between layers)
+    f.write(struct.pack(">B", 1))
+    # Turn off time (unused in mode 1, but write 0 for completeness)
     f.write(struct.pack(">f", 0.0))
-    # bottom_before_lift_time, bottom_after_lift_time, bottom_after_retract_time
-    f.write(struct.pack(">fff", 0.0, 0.0, 0.0))
-    # before_lift_time, after_lift_time, after_retract_time
-    f.write(struct.pack(">fff", 0.0, 0.0, 0.0))
+    # Wait times for bottom layers: before_lift, after_lift, after_retract
+    wait_s = 1.0 if total_layers > 1 else 0.0
+    f.write(struct.pack(">fff", 0.0, 0.0, wait_s))
+    # Wait times for common layers: before_lift, after_lift, after_retract
+    f.write(struct.pack(">fff", 0.0, 0.0, wait_s))
     # Bottom exposure time
     f.write(struct.pack(">f", params.bottom_exposure_time_s))
-    # Bottom layers
+    # Bottom layers (keep at 1 — firmware applies slow built-in bottom
+    # behaviour to every bottom layer, inflating the build time estimate)
     f.write(struct.pack(">I", 1))
-    # bottom_lift_distance, bottom_lift_speed (zero — PCB, no resin)
-    f.write(struct.pack(">ff", 0.0, 0.0))
+    # Lift/retract: small movement to trigger LCD refresh between layers
+    needs_lift = total_layers > 1
+    lift_dist = 2.0 if needs_lift else 0.0
+    lift_speed = 120.0 if needs_lift else 0.0
+    retract_dist = 2.0 if needs_lift else 0.0
+    retract_speed = 120.0 if needs_lift else 0.0
+    # bottom_lift_distance, bottom_lift_speed
+    f.write(struct.pack(">ff", lift_dist, lift_speed))
     # lift_distance, lift_speed
-    f.write(struct.pack(">ff", 0.0, 0.0))
+    f.write(struct.pack(">ff", lift_dist, lift_speed))
     # bottom_retract_distance, bottom_retract_speed
-    f.write(struct.pack(">ff", 0.0, 0.0))
+    f.write(struct.pack(">ff", retract_dist, retract_speed))
     # retract_distance, retract_speed
-    f.write(struct.pack(">ff", 0.0, 0.0))
+    f.write(struct.pack(">ff", retract_dist, retract_speed))
     # bottom_second_lift_distance, bottom_second_lift_speed
     f.write(struct.pack(">ff", 0.0, 0.0))
     # second_lift_distance, second_lift_speed
@@ -203,7 +212,7 @@ def _write_header(
     f.write(struct.pack(">ff", 0.0, 0.0))
     # Bottom light PWM, light PWM
     f.write(struct.pack(">HH", params.light_pwm, params.light_pwm))
-    # Advance mode
+    # Advance mode (0 = normal; firmware ignores per-layer times otherwise)
     f.write(struct.pack(">B", 0))
     # Printing time (seconds)
     f.write(struct.pack(">I", int(params.exposure_time_s * total_layers)))
@@ -213,8 +222,8 @@ def _write_header(
     f.write(_sized_string("$", 8))
     # Offset of layer content (= header size)
     f.write(struct.pack(">I", HEADER_SIZE))
-    # Grey scale level
-    f.write(struct.pack(">B", 0))
+    # Grey scale level (1 = full 0x00-0xFF range)
+    f.write(struct.pack(">B", 1))
     # Transition layers
     f.write(struct.pack(">H", 0))
 
@@ -225,6 +234,10 @@ def _write_layer(
     exposure_time_s: float,
     light_pwm: int = 255,
     layer_pos_z: float = 0.05,
+    lift_distance: float = 0.0,
+    lift_speed: float = 0.0,
+    retract_distance: float = 0.0,
+    retract_speed: float = 0.0,
 ) -> None:
     """Write a single layer content block."""
     # Pause flag
@@ -235,16 +248,18 @@ def _write_layer(
     f.write(struct.pack(">f", layer_pos_z))
     # Layer exposure time
     f.write(struct.pack(">f", exposure_time_s))
-    # Layer off time
+    # Layer off time (unused in delay mode 1)
     f.write(struct.pack(">f", 0.0))
     # before_lift_time, after_lift_time, after_retract_time
-    f.write(struct.pack(">fff", 0.0, 0.0, 0.0))
-    # lift_distance, lift_speed (zero — PCB is taped to screen, no resin)
-    f.write(struct.pack(">ff", 0.0, 0.0))
+    # after_retract = wait before next exposure, gives LCD time to refresh
+    after_retract = 1.0 if lift_distance > 0 else 0.0
+    f.write(struct.pack(">fff", 0.0, 0.0, after_retract))
+    # lift_distance, lift_speed
+    f.write(struct.pack(">ff", lift_distance, lift_speed))
     # second_lift_distance, second_lift_speed
     f.write(struct.pack(">ff", 0.0, 0.0))
     # retract_distance, retract_speed
-    f.write(struct.pack(">ff", 0.0, 0.0))
+    f.write(struct.pack(">ff", retract_distance, retract_speed))
     # second_retract_distance, second_retract_speed
     f.write(struct.pack(">ff", 0.0, 0.0))
     # Light PWM
@@ -267,6 +282,15 @@ class GooOutput(OutputFormat):
     name = "goo"
     file_extension = ".goo"
 
+    # Lift/retract to trigger LCD refresh between layers.
+    # Small distance at reasonable speed — ~2s overhead per layer.
+    LIFT_DISTANCE_MM = 2.0
+    LIFT_SPEED_MM_MIN = 120.0
+    RETRACT_DISTANCE_MM = 2.0
+    RETRACT_SPEED_MM_MIN = 120.0
+    # Platform Z — low so the printer doesn't waste time traveling after home.
+    LAYER_Z_MM = 5.0
+
     def write(
         self,
         path: Path,
@@ -278,24 +302,44 @@ class GooOutput(OutputFormat):
 
         with open(path, "wb") as f:
             _write_header(f, profile, params, total_layers=1)
-            _write_layer(f, rle_data, params.exposure_time_s, params.light_pwm)
+            assert f.tell() == HEADER_SIZE, f"Header size mismatch: wrote {f.tell()}, expected {HEADER_SIZE}"
+            _write_layer(f, rle_data, params.exposure_time_s, params.light_pwm,
+                         layer_pos_z=self.LAYER_Z_MM)
             f.write(ENDING_STRING)
 
     def write_multilayer(
         self,
         path: Path,
-        layers: list[tuple[np.ndarray, float]],
+        layers: list[tuple[np.ndarray, int]],
         profile: PrinterProfile,
         params: ExposureParams,
     ) -> None:
         """Write a multi-layer .goo file.
 
+        Each layer uses the same exposure time from params.  Different
+        per-region totals are achieved by repeating layers — regions that
+        need more exposure appear in more layers.
+
         Args:
-            layers: List of (bitmap, exposure_time_s) tuples, one per layer.
+            layers: List of (bitmap, repeat_count) tuples.  Each unique
+                bitmap is RLE-encoded once and written repeat_count times.
         """
+        total_layers = sum(count for _, count in layers)
+
         with open(path, "wb") as f:
-            _write_header(f, profile, params, total_layers=len(layers))
-            for bitmap, exposure_s in layers:
+            _write_header(f, profile, params, total_layers=total_layers)
+            assert f.tell() == HEADER_SIZE, f"Header size mismatch: wrote {f.tell()}, expected {HEADER_SIZE}"
+            layer_num = 0
+            for bitmap, repeat_count in layers:
                 rle_data = rle_encode(bitmap)
-                _write_layer(f, rle_data, exposure_s, params.light_pwm)
+                for _ in range(repeat_count):
+                    layer_z = self.LAYER_Z_MM + params.layer_thickness_mm * layer_num
+                    _write_layer(f, rle_data, params.exposure_time_s,
+                                 params.light_pwm,
+                                 layer_pos_z=layer_z,
+                                 lift_distance=self.LIFT_DISTANCE_MM,
+                                 lift_speed=self.LIFT_SPEED_MM_MIN,
+                                 retract_distance=self.RETRACT_DISTANCE_MM,
+                                 retract_speed=self.RETRACT_SPEED_MM_MIN)
+                    layer_num += 1
             f.write(ENDING_STRING)
