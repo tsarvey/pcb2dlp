@@ -67,9 +67,9 @@ class PreviewCanvas(tk.Frame):
 
         self.canvas.delete("all")
 
-        # Downscale to canvas size
+        # Downscale to canvas size with antialiasing for readable preview
         img = Image.fromarray(bitmap)
-        img = img.resize((self.canvas_width, self.canvas_height), Image.NEAREST)
+        img = img.resize((self.canvas_width, self.canvas_height), Image.LANCZOS)
 
         self._photo = ImageTk.PhotoImage(img)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self._photo)

@@ -74,6 +74,17 @@ def main():
     convert.add_argument("--offset-x", type=float, default=0.0, help="X offset from center in mm")
     convert.add_argument("--offset-y", type=float, default=0.0, help="Y offset from center in mm")
 
+    # Test exposure command
+    test_exp = subparsers.add_parser("test-exposure", help="Generate an exposure test pattern")
+    test_exp.add_argument("-o", "--output", default="exposure_test.goo", help="Output .goo file path")
+    test_exp.add_argument("--printer", default="Elegoo Mars 4 9K", choices=list_printers(), help="Printer profile")
+    test_exp.add_argument("--base", type=float, default=5.0, help="Shortest exposure time in seconds (default: 5)")
+    test_exp.add_argument("--multiplier", type=float, default=2.0, help="Multiplier between regions (default: 2.0)")
+    test_exp.add_argument("--regions", type=int, default=5, help="Number of regions (default: 5)")
+    test_exp.add_argument("--pwm", type=int, default=255, help="Light PWM 0-255 (default: 255)")
+    test_exp.add_argument("--board-width", type=float, default=None, help="Board width in mm (default: full plate)")
+    test_exp.add_argument("--board-height", type=float, default=None, help="Board height in mm (default: full plate)")
+
     # GUI command
     subparsers.add_parser("gui", help="Launch the graphical interface")
 
@@ -81,6 +92,21 @@ def main():
 
     if args.command == "convert":
         cli_convert(args)
+    elif args.command == "test-exposure":
+        from .test_pattern import generate_test_exposure
+        profile = get_printer(args.printer)
+        print(f"Generating exposure test pattern for {profile.name}...")
+        exposures = generate_test_exposure(
+            profile, Path(args.output),
+            base_exposure_s=args.base,
+            multiplier=args.multiplier,
+            regions=args.regions,
+            board_width_mm=args.board_width,
+            board_height_mm=args.board_height,
+            pwm=args.pwm,
+        )
+        print(f"Regions: {', '.join(f'{e}s' for e in exposures)}")
+        print(f"Written to {args.output}")
     elif args.command == "gui":
         from .gui.app import run_gui
         run_gui()

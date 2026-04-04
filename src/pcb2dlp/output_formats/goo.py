@@ -185,14 +185,14 @@ def _write_header(
     f.write(struct.pack(">f", params.bottom_exposure_time_s))
     # Bottom layers
     f.write(struct.pack(">I", 1))
-    # bottom_lift_distance, bottom_lift_speed
-    f.write(struct.pack(">ff", 5.0, 3.0))
+    # bottom_lift_distance, bottom_lift_speed (zero — PCB, no resin)
+    f.write(struct.pack(">ff", 0.0, 0.0))
     # lift_distance, lift_speed
-    f.write(struct.pack(">ff", 5.0, 3.0))
+    f.write(struct.pack(">ff", 0.0, 0.0))
     # bottom_retract_distance, bottom_retract_speed
-    f.write(struct.pack(">ff", 5.0, 3.0))
+    f.write(struct.pack(">ff", 0.0, 0.0))
     # retract_distance, retract_speed
-    f.write(struct.pack(">ff", 5.0, 3.0))
+    f.write(struct.pack(">ff", 0.0, 0.0))
     # bottom_second_lift_distance, bottom_second_lift_speed
     f.write(struct.pack(">ff", 0.0, 0.0))
     # second_lift_distance, second_lift_speed
@@ -222,7 +222,8 @@ def _write_header(
 def _write_layer(
     f,
     rle_data: bytes,
-    params: ExposureParams,
+    exposure_time_s: float,
+    light_pwm: int = 255,
     layer_pos_z: float = 0.05,
 ) -> None:
     """Write a single layer content block."""
@@ -233,21 +234,21 @@ def _write_layer(
     # Layer position Z
     f.write(struct.pack(">f", layer_pos_z))
     # Layer exposure time
-    f.write(struct.pack(">f", params.exposure_time_s))
+    f.write(struct.pack(">f", exposure_time_s))
     # Layer off time
     f.write(struct.pack(">f", 0.0))
     # before_lift_time, after_lift_time, after_retract_time
     f.write(struct.pack(">fff", 0.0, 0.0, 0.0))
-    # lift_distance, lift_speed
-    f.write(struct.pack(">ff", 5.0, 3.0))
+    # lift_distance, lift_speed (zero — PCB is taped to screen, no resin)
+    f.write(struct.pack(">ff", 0.0, 0.0))
     # second_lift_distance, second_lift_speed
     f.write(struct.pack(">ff", 0.0, 0.0))
     # retract_distance, retract_speed
-    f.write(struct.pack(">ff", 5.0, 3.0))
+    f.write(struct.pack(">ff", 0.0, 0.0))
     # second_retract_distance, second_retract_speed
     f.write(struct.pack(">ff", 0.0, 0.0))
     # Light PWM
-    f.write(struct.pack(">H", params.light_pwm))
+    f.write(struct.pack(">H", light_pwm))
     # Delimiter
     f.write(DELIMITER)
     # Data length (magic byte + rle data + checksum byte = len + 2)
@@ -277,5 +278,24 @@ class GooOutput(OutputFormat):
 
         with open(path, "wb") as f:
             _write_header(f, profile, params, total_layers=1)
-            _write_layer(f, rle_data, params)
+            _write_layer(f, rle_data, params.exposure_time_s, params.light_pwm)
+            f.write(ENDING_STRING)
+
+    def write_multilayer(
+        self,
+        path: Path,
+        layers: list[tuple[np.ndarray, float]],
+        profile: PrinterProfile,
+        params: ExposureParams,
+    ) -> None:
+        """Write a multi-layer .goo file.
+
+        Args:
+            layers: List of (bitmap, exposure_time_s) tuples, one per layer.
+        """
+        with open(path, "wb") as f:
+            _write_header(f, profile, params, total_layers=len(layers))
+            for bitmap, exposure_s in layers:
+                rle_data = rle_encode(bitmap)
+                _write_layer(f, rle_data, exposure_s, params.light_pwm)
             f.write(ENDING_STRING)
