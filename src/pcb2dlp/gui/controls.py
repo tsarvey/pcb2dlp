@@ -49,11 +49,12 @@ class ControlsPanel(tk.Frame):
 
     def _build_ui(self):
         pad = {"padx": 10, "pady": 3}
+        section_pad = {"padx": 10, "pady": (15, 3)}
         label_opts = {"bg": "#2b2b2b", "fg": "#ccc", "anchor": "w", "font": ("Helvetica", 11)}
         header_opts = {"bg": "#2b2b2b", "fg": "#fff", "anchor": "w", "font": ("Helvetica", 12, "bold")}
 
         # Printer
-        tk.Label(self, text="Printer", **header_opts).pack(fill=tk.X, **pad, pady=(15, 3))
+        tk.Label(self, text="Printer", **header_opts).pack(fill=tk.X, **section_pad)
         printer_menu = ttk.Combobox(
             self, textvariable=self._printer_var,
             values=list_printers(), state="readonly", width=22,
@@ -62,7 +63,7 @@ class ControlsPanel(tk.Frame):
         printer_menu.bind("<<ComboboxSelected>>", lambda _: self._notify())
 
         # Exposure
-        tk.Label(self, text="Exposure", **header_opts).pack(fill=tk.X, **pad, pady=(15, 3))
+        tk.Label(self, text="Exposure", **header_opts).pack(fill=tk.X, **section_pad)
         row = tk.Frame(self, bg="#2b2b2b")
         row.pack(fill=tk.X, **pad)
         tk.Label(row, text="Time (s):", **label_opts).pack(side=tk.LEFT)
@@ -83,7 +84,7 @@ class ControlsPanel(tk.Frame):
         pwm_scale.pack(side=tk.RIGHT)
 
         # Polarity
-        tk.Label(self, text="Polarity", **header_opts).pack(fill=tk.X, **pad, pady=(15, 3))
+        tk.Label(self, text="Polarity", **header_opts).pack(fill=tk.X, **section_pad)
         tk.Checkbutton(
             self, text="Invert (positive resist)",
             variable=self._invert_var, bg="#2b2b2b", fg="#ccc",
@@ -92,7 +93,7 @@ class ControlsPanel(tk.Frame):
         ).pack(fill=tk.X, **pad)
 
         # Mirror
-        tk.Label(self, text="Mirror", **header_opts).pack(fill=tk.X, **pad, pady=(15, 3))
+        tk.Label(self, text="Mirror", **header_opts).pack(fill=tk.X, **section_pad)
         tk.Checkbutton(
             self, text="Mirror X (horizontal)",
             variable=self._mirror_x_var, bg="#2b2b2b", fg="#ccc",
@@ -107,7 +108,7 @@ class ControlsPanel(tk.Frame):
         ).pack(fill=tk.X, **pad)
 
         # Rotation
-        tk.Label(self, text="Rotation", **header_opts).pack(fill=tk.X, **pad, pady=(15, 3))
+        tk.Label(self, text="Rotation", **header_opts).pack(fill=tk.X, **section_pad)
         rot_frame = tk.Frame(self, bg="#2b2b2b")
         rot_frame.pack(fill=tk.X, **pad)
         for deg in [0, 90, 180, 270]:
@@ -120,7 +121,7 @@ class ControlsPanel(tk.Frame):
             ).pack(side=tk.LEFT, padx=5)
 
         # Offset
-        tk.Label(self, text="Offset (mm)", **header_opts).pack(fill=tk.X, **pad, pady=(15, 3))
+        tk.Label(self, text="Offset (mm)", **header_opts).pack(fill=tk.X, **section_pad)
         for label, var in [("X:", self._offset_x_var), ("Y:", self._offset_y_var)]:
             row = tk.Frame(self, bg="#2b2b2b")
             row.pack(fill=tk.X, **pad)
