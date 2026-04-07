@@ -26,11 +26,17 @@ class PreviewCanvas(tk.Frame):
         self._pan_y = 0.0
         self._drag_start: tuple[int, int] | None = None
 
+        # Container that keeps the canvas at the printer's aspect ratio
+        self._canvas_holder = tk.Frame(self, bg="#2b2b2b")
+        self._canvas_holder.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
+        self._canvas_holder.bind("<Configure>", self._on_holder_resize)
+
+        self._aspect = profile.x_pixels / profile.y_pixels
         self.canvas = tk.Canvas(
-            self, bg="#1a1a1a",
+            self._canvas_holder, bg="#1a1a1a",
             highlightthickness=1, highlightbackground="#444",
         )
-        self.canvas.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
+        self.canvas.place(relx=0.5, rely=0.5, anchor=tk.CENTER, width=10, height=10)
 
         # Info label
         self.info_label = tk.Label(
@@ -228,3 +234,17 @@ class PreviewCanvas(tk.Frame):
         """Re-render when the canvas is resized."""
         if self._full_img is not None:
             self._render()
+        else:
+            self._draw_empty_plate()
+
+    def _on_holder_resize(self, event):
+        """Resize the canvas to fit the holder while preserving printer aspect."""
+        avail_w = max(1, event.width - 2)
+        avail_h = max(1, event.height - 2)
+        if avail_w / avail_h > self._aspect:
+            h = avail_h
+            w = int(h * self._aspect)
+        else:
+            w = avail_w
+            h = int(w / self._aspect)
+        self.canvas.place_configure(width=w, height=h)
