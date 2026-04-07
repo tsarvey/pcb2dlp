@@ -361,6 +361,8 @@ def generate_test_exposure(
     pwm: int = 255,
     board_width_mm: float | None = None,
     board_height_mm: float | None = None,
+    mirror_x: bool = True,
+    mirror_y: bool = True,
 ) -> list[float]:
     """Generate a multi-layer exposure test .goo file.
 
@@ -376,6 +378,16 @@ def generate_test_exposure(
     board_h = board_height_mm or profile.build_area_y_mm
 
     layers, base_time, _ = build_test_layers(exposures, profile, board_w, board_h)
+
+    if mirror_x or mirror_y:
+        mirrored = []
+        for bitmap, count in layers:
+            if mirror_x:
+                bitmap = np.fliplr(bitmap)
+            if mirror_y:
+                bitmap = np.flipud(bitmap)
+            mirrored.append((bitmap, count))
+        layers = mirrored
 
     params = ExposureParams(
         exposure_time_s=base_time,

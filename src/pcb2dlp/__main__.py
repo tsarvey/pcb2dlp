@@ -69,7 +69,8 @@ def main():
     convert.add_argument("--pwm", type=int, default=255, help="Light PWM 0-255 (default: 255)")
     convert.add_argument("--mirror-x", action="store_true", default=True, help="Mirror horizontally (default: on)")
     convert.add_argument("--no-mirror-x", dest="mirror_x", action="store_false", help="Disable horizontal mirror")
-    convert.add_argument("--mirror-y", action="store_true", help="Mirror vertically")
+    convert.add_argument("--mirror-y", action="store_true", default=True, help="Mirror vertically (default: on)")
+    convert.add_argument("--no-mirror-y", dest="mirror_y", action="store_false", help="Disable vertical mirror")
     convert.add_argument("--invert", action="store_true", help="Invert polarity (for positive photoresist)")
     convert.add_argument("--rotation", type=int, default=0, choices=[0, 90, 180, 270], help="Rotation in degrees")
     convert.add_argument("--offset-x", type=float, default=0.0, help="X offset from center in mm")
@@ -85,6 +86,10 @@ def main():
     test_exp.add_argument("--pwm", type=int, default=255, help="Light PWM 0-255 (default: 255)")
     test_exp.add_argument("--board-width", type=float, default=None, help="Board width in mm (default: full plate)")
     test_exp.add_argument("--board-height", type=float, default=None, help="Board height in mm (default: full plate)")
+    test_exp.add_argument("--mirror-x", action="store_true", default=True, help="Mirror horizontally (default: on)")
+    test_exp.add_argument("--no-mirror-x", dest="mirror_x", action="store_false", help="Disable horizontal mirror")
+    test_exp.add_argument("--mirror-y", action="store_true", default=True, help="Mirror vertically (default: on)")
+    test_exp.add_argument("--no-mirror-y", dest="mirror_y", action="store_false", help="Disable vertical mirror")
 
     # GUI command
     subparsers.add_parser("gui", help="Launch the graphical interface")
@@ -105,6 +110,8 @@ def main():
             board_width_mm=args.board_width,
             board_height_mm=args.board_height,
             pwm=args.pwm,
+            mirror_x=args.mirror_x,
+            mirror_y=args.mirror_y,
         )
         print(f"Regions: {', '.join(f'{e}s' for e in exposures)}")
         print(f"Written to {args.output}")

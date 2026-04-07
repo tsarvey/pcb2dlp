@@ -15,7 +15,7 @@ class ControlState:
     pwm: int = 255
     invert: bool = False
     mirror_x: bool = True
-    mirror_y: bool = False
+    mirror_y: bool = True
     rotation: int = 0
     offset_x_mm: float = 0.0
     offset_y_mm: float = 0.0
@@ -122,7 +122,7 @@ class ControlsPanel(tk.Frame):
             command=self._notify,
         )
         mirror_y_cb.pack(fill=tk.X, **pad)
-        self._gerber_widgets.extend([lbl5, mirror_x_cb, mirror_y_cb])
+        # Mirror stays active in test pattern mode too
 
         # Rotation
         lbl6 = tk.Label(self, text="Rotation", **header_opts)

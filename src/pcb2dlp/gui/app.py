@@ -1,7 +1,7 @@
 """Main application window."""
 
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 
 import numpy as np
@@ -30,8 +30,27 @@ class App:
         self._test_pattern_layers: list[tuple[np.ndarray, int]] | None = None
         self._test_pattern_base_time: float | None = None
 
+        self._setup_button_styles()
         self._build_menu()
         self._build_layout()
+
+    def _setup_button_styles(self):
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure(
+            "Primary.TButton",
+            background="#4a9eff", foreground="white",
+            font=("Helvetica", 12, "bold"), padding=(20, 8),
+        )
+        style.map("Primary.TButton",
+                   background=[("active", "#3a8eef"), ("disabled", "#555")])
+        style.configure(
+            "Secondary.TButton",
+            background="#555", foreground="white",
+            font=("Helvetica", 11), padding=(15, 5),
+        )
+        style.map("Secondary.TButton",
+                   background=[("active", "#666"), ("disabled", "#444")])
 
     def _build_menu(self):
         menubar = tk.Menu(self.root)
@@ -65,11 +84,9 @@ class App:
         )
         self._mode_label.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 5))
 
-        export_btn = tk.Button(
+        export_btn = ttk.Button(
             self.controls, text="Export .goo",
-            command=self._export_file,
-            bg="#4a9eff", fg="white", font=("Helvetica", 12, "bold"),
-            padx=20, pady=8,
+            command=self._export_file, style="Primary.TButton",
         )
         export_btn.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 15))
 
@@ -139,6 +156,26 @@ class App:
     def _on_settings_change(self):
         if self._svg is not None:
             self._update_preview()
+        elif self._test_pattern_layers is not None:
+            self._update_test_pattern_preview()
+
+    def _apply_mirror(self, bitmap: np.ndarray) -> np.ndarray:
+        """Apply current mirror settings to a bitmap."""
+        state = self.controls.state
+        if state.mirror_x:
+            bitmap = np.fliplr(bitmap)
+        if state.mirror_y:
+            bitmap = np.flipud(bitmap)
+        return bitmap
+
+    def _update_test_pattern_preview(self):
+        """Re-render the test pattern composite with current mirror settings."""
+        profile = self.controls.get_profile()
+        composite = np.zeros((profile.y_pixels, profile.x_pixels), dtype=np.uint8)
+        for layer_bitmap, _ in self._test_pattern_layers:
+            composite = np.maximum(composite, layer_bitmap)
+        self._bitmap = self._apply_mirror(composite)
+        self.preview.update_bitmap(self._bitmap)
 
     def _update_preview(self):
         if self._svg is None or self._board_size is None:
@@ -191,7 +228,11 @@ class App:
                     bottom_exposure_time_s=self._test_pattern_base_time,
                     light_pwm=state.pwm,
                 )
-                writer.write_multilayer(Path(path), self._test_pattern_layers, profile, test_params)
+                mirrored_layers = [
+                    (self._apply_mirror(bm), count)
+                    for bm, count in self._test_pattern_layers
+                ]
+                writer.write_multilayer(Path(path), mirrored_layers, profile, test_params)
             else:
                 writer.write(Path(path), self._bitmap, profile, params)
             messagebox.showinfo("Success", f"Exported to {Path(path).name}")
@@ -255,11 +296,10 @@ class _TestPatternDialog(tk.Toplevel):
         # Buttons
         btn_frame = tk.Frame(self, bg="#2b2b2b")
         btn_frame.grid(row=8, column=0, columnspan=2, pady=15)
-        tk.Button(btn_frame, text="Generate", bg="#4a9eff", fg="white",
-                  font=("Helvetica", 11, "bold"), command=self._on_ok,
-                  padx=15, pady=5).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="Cancel", command=self.destroy,
-                  padx=15, pady=5).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Generate", style="Primary.TButton",
+                   command=self._on_ok).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", style="Secondary.TButton",
+                   command=self.destroy).pack(side=tk.LEFT, padx=5)
 
         self.transient(parent)
         self.grab_set()
