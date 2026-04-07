@@ -5,6 +5,7 @@ from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont, ImageTk
 
 from ..input_formats import get_format_for_file, InputFormat
 from ..output_formats import ExposureParams
@@ -22,6 +23,7 @@ class App:
         self.root.title("pcb2dlp")
         self.root.configure(bg="#2b2b2b")
         self.root.geometry("1050x620")
+        self._set_app_icon()
 
         self._input_fmt: InputFormat | None = None
         self._svg: str | None = None
@@ -238,6 +240,36 @@ class App:
             messagebox.showinfo("Success", f"Exported to {Path(path).name}")
         except Exception as e:
             messagebox.showerror("Error", f"Export failed:\n{e}")
+
+    def _set_app_icon(self):
+        """Generate and apply a simple branded app icon."""
+        try:
+            size = 256
+            img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            # Rounded square background
+            draw.rounded_rectangle(
+                [(8, 8), (size - 8, size - 8)],
+                radius=40,
+                fill=(43, 43, 43, 255),
+                outline=(0, 200, 120, 255),
+                width=6,
+            )
+            # Stylized "PCB" text
+            try:
+                font = ImageFont.truetype("Helvetica", 96)
+                sub_font = ImageFont.truetype("Helvetica", 36)
+            except OSError:
+                font = ImageFont.load_default()
+                sub_font = ImageFont.load_default()
+            draw.text((size / 2, size / 2 - 20), "PCB", font=font,
+                      fill=(0, 200, 120, 255), anchor="mm")
+            draw.text((size / 2, size / 2 + 60), "2DLP", font=sub_font,
+                      fill=(220, 220, 220, 255), anchor="mm")
+            self._icon_image = ImageTk.PhotoImage(img)
+            self.root.iconphoto(True, self._icon_image)
+        except Exception:
+            pass
 
     def run(self):
         self.root.mainloop()
