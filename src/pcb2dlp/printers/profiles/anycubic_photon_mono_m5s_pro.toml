@@ -1,0 +1,10 @@
+# Anycubic Photon Mono M5s Pro
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Anycubic Photon Mono M5s Pro"
+x_pixels = 13312
+y_pixels = 5120
+pixel_size_um = 17.0
+build_area_x_mm = 223.78
+build_area_y_mm = 126.98
+build_area_z_mm = 200.0
+uv_wavelength_nm = 405

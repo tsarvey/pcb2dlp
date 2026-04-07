@@ -1,0 +1,10 @@
+# Elegoo Saturn 4 Ultra 16K
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Elegoo Saturn 4 Ultra 16K"
+x_pixels = 15120
+y_pixels = 6230
+pixel_size_um = 14.6
+build_area_x_mm = 218.88
+build_area_y_mm = 122.88
+build_area_z_mm = 220.0
+uv_wavelength_nm = 405

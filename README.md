@@ -60,4 +60,6 @@ Open a Gerber file, adjust exposure/mirror/rotation settings with live preview, 
 
 ## Adding printer support
 
-Create a new file in `src/pcb2dlp/printers/` with a `PrinterProfile` instance and add the import to `printers/__init__.py`. See `mars4_9k.py` for an example.
+Drop a `<printer>.toml` file into `src/pcb2dlp/printers/profiles/`. It is auto-discovered at import time — no Python edits required. See [elegoo_mars_4_9k.toml](src/pcb2dlp/printers/profiles/elegoo_mars_4_9k.toml) for the field list.
+
+Only the Elegoo Mars 4 9K has exposure values verified for PCB photoresist. All other shipped profiles contain hardware specs only — `default_exposure_s`, `default_bottom_exposure_s`, and `default_pwm` are `None` and must be supplied at the CLI/GUI until you've calibrated them on your hardware. If you tune values for a printer, please contribute them back by editing the relevant TOML file.

@@ -74,6 +74,33 @@ class PreviewCanvas(tk.Frame):
             fill="#666", font=("Helvetica", 14),
         )
 
+    def set_profile(self, profile: PrinterProfile):
+        """Switch to a different printer profile, updating aspect & info text."""
+        if profile is self.profile:
+            return
+        self.profile = profile
+        self._aspect = profile.x_pixels / profile.y_pixels
+        self.info_label.config(
+            text=f"Build plate: {profile.build_area_x_mm:.1f} x {profile.build_area_y_mm:.1f} mm "
+            f"({profile.x_pixels} x {profile.y_pixels} px, {profile.pixel_size_um}um)"
+        )
+        # Re-fit the canvas to the new aspect using current holder size
+        holder_w = self._canvas_holder.winfo_width()
+        holder_h = self._canvas_holder.winfo_height()
+        if holder_w > 1 and holder_h > 1:
+            avail_w = max(1, holder_w - 2)
+            avail_h = max(1, holder_h - 2)
+            if avail_w / avail_h > self._aspect:
+                h = avail_h
+                w = int(h * self._aspect)
+            else:
+                w = avail_w
+                h = int(w / self._aspect)
+            self.canvas.place_configure(width=w, height=h)
+        # Bitmap is sized for the old profile — drop it; caller will re-render.
+        self._full_img = None
+        self._draw_empty_plate()
+
     def update_bitmap(self, bitmap: np.ndarray | None):
         """Update the preview with a new bitmap (full build plate resolution)."""
         if bitmap is None:

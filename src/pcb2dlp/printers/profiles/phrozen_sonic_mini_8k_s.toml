@@ -1,0 +1,10 @@
+# Phrozen Sonic Mini 8K S
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Phrozen Sonic Mini 8K S"
+x_pixels = 7500
+y_pixels = 3240
+pixel_size_um = 22.0
+build_area_x_mm = 165.0
+build_area_y_mm = 71.28
+build_area_z_mm = 180.0
+uv_wavelength_nm = 405

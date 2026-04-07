@@ -1,0 +1,10 @@
+# Anycubic Photon Mono X 6Ks
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Anycubic Photon Mono X 6Ks"
+x_pixels = 5760
+y_pixels = 3600
+pixel_size_um = 34.0
+build_area_x_mm = 195.84
+build_area_y_mm = 122.4
+build_area_z_mm = 200.0
+uv_wavelength_nm = 405

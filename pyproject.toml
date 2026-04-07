@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pcb2dlp"
 version = "0.1.0"
 description = "Convert PCB Gerber files to MSLA 3D printer formats for photoresist exposure"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "gerbonara>=1.5",
     "cairosvg>=2.7",
@@ -19,3 +19,6 @@ pcb2dlp = "pcb2dlp.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"pcb2dlp.printers" = ["profiles/*.toml"]

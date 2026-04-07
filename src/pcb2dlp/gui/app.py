@@ -156,6 +156,7 @@ class App:
         )
 
     def _on_settings_change(self):
+        self.preview.set_profile(self.controls.get_profile())
         if self._svg is not None:
             self._update_preview()
         elif self._test_pattern_layers is not None:

@@ -1,0 +1,10 @@
+# Elegoo Saturn 3
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Elegoo Saturn 3"
+x_pixels = 11520
+y_pixels = 5120
+pixel_size_um = 19.0
+build_area_x_mm = 218.88
+build_area_y_mm = 122.88
+build_area_z_mm = 260.0
+uv_wavelength_nm = 405

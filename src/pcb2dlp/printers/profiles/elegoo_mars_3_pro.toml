@@ -1,0 +1,11 @@
+# Elegoo Mars 3 Pro
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+# Tune default_exposure_s / default_bottom_exposure_s / default_pwm before relying on these.
+name = "Elegoo Mars 3 Pro"
+x_pixels = 4098
+y_pixels = 2560
+pixel_size_um = 35.0
+build_area_x_mm = 143.43
+build_area_y_mm = 89.6
+build_area_z_mm = 175.0
+uv_wavelength_nm = 405

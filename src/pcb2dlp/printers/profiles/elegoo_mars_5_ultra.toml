@@ -1,0 +1,10 @@
+# Elegoo Mars 5 Ultra
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Elegoo Mars 5 Ultra"
+x_pixels = 8520
+y_pixels = 4320
+pixel_size_um = 18.0
+build_area_x_mm = 153.36
+build_area_y_mm = 77.76
+build_area_z_mm = 150.0
+uv_wavelength_nm = 405

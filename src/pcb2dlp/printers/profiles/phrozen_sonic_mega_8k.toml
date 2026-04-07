@@ -1,0 +1,10 @@
+# Phrozen Sonic Mega 8K
+# Hardware specs only — exposure values for PCB photoresist NOT tested.
+name = "Phrozen Sonic Mega 8K"
+x_pixels = 7680
+y_pixels = 4320
+pixel_size_um = 43.0
+build_area_x_mm = 330.0
+build_area_y_mm = 185.0
+build_area_z_mm = 400.0
+uv_wavelength_nm = 405
