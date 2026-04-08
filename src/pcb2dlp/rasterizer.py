@@ -1,13 +1,18 @@
 """Rasterize SVG to numpy bitmap at exact printer pixel resolution."""
 
+import io
+import re
 from dataclasses import dataclass
 
-import cairosvg
 import numpy as np
+import resvg_py
 from PIL import Image
-import io
 
 from .printers import PrinterProfile
+
+# Matches width="123.4mm" / height="123.4mm" on the root <svg> tag and captures
+# the attribute name + numeric value so we can rewrite without the unit suffix.
+_UNIT_RE = re.compile(r'(width|height)="([\d.]+)mm"')
 
 
 @dataclass
@@ -36,11 +41,21 @@ def rasterize_svg(
     board_w_px = round(board_w_mm * 1000 / profile.pixel_size_um)
     board_h_px = round(board_h_mm * 1000 / profile.pixel_size_um)
 
-    # Rasterize SVG to PNG bytes at exact pixel dimensions
-    png_bytes = cairosvg.svg2png(
-        bytestring=svg_string.encode("utf-8"),
-        output_width=board_w_px,
-        output_height=board_h_px,
+    # Rasterize SVG to PNG bytes at exact pixel dimensions.
+    # resvg-py is a Rust-based rasterizer distributed as self-contained wheels,
+    # so no system libraries (cairo, etc.) are required on any platform.
+    #
+    # gerbonara emits the root <svg> tag with mm-unit dimensions
+    # (e.g. width="50mm"), which resvg rejects with "SVG has an invalid size"
+    # even when explicit pixel dimensions are passed. Strip the unit so resvg
+    # treats them as user units; the viewBox already carries the real extent
+    # and our explicit width/height args drive the output resolution.
+    svg_string = _UNIT_RE.sub(r'\1="\2"', svg_string, count=2)
+
+    png_bytes = resvg_py.svg_to_bytes(
+        svg_string=svg_string,
+        width=board_w_px,
+        height=board_h_px,
     )
 
     # Load into Pillow and convert to grayscale
